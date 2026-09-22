@@ -51,7 +51,6 @@ GitHub를 활용하여 프로젝트, 과제 및 학습 활동을 지속적으로
 - 과제 내용을 Issue로 관리
 - 필요한 경우 별도의 Branch에서 작업
 - 과제 결과물을 Repository에 기록
-- 완료한 과제를 `ASSIGNMENTS.md`에 정리
 
 ### 공부
 
@@ -82,7 +81,6 @@ GitHub를 활용하여 프로젝트, 과제 및 학습 활동을 지속적으로
 | `README.md` | Repository 소개 및 전체적인 안내 |
 | `RULES.md` | Repository 관리 및 작업 규칙 |
 | `GOALS.md` | 학기 동안의 목표 및 계획 |
-| `ASSIGNMENTS.md` | 매주 진행하는 과제 기록 |
 | `docs/study/` | 공부한 내용 및 학습 자료 |
 
 ## 📅 학기 정보
@@ -95,14 +93,13 @@ GitHub를 활용하여 프로젝트, 과제 및 학습 활동을 지속적으로
 
 - [Repository 관리 규칙](RULES.md)
 - [학기 목표](GOALS.md)
-- [과제 기록](ASSIGNMENTS.md)
 - [공부 기록](docs/study/)
 
 ---
 
 ## 📌 현재 상태
 
-> 마지막 업데이트: 2026-09-17
+> 마지막 업데이트: 2026-09-22
 
 현재 진행 중인 작업:
 
