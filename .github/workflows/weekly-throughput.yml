@@ -1,0 +1,46 @@
+name: Weekly Throughput
+
+on:
+  schedule:
+    # GitHub Actions cron is UTC: Saturday 15:00 UTC = Sunday 00:00 KST.
+    - cron: '0 15 * * 6'
+  workflow_dispatch:
+
+permissions:
+  issues: read
+
+jobs:
+  calculate-throughput:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate closed issues for the last week
+        id: throughput
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          END_DATE="$(TZ=Asia/Seoul date +%F)"
+          START_DATE="$(TZ=Asia/Seoul date -d '7 days ago' +%F)"
+
+          # --limit prevents GitHub CLI's default 30-item limit from truncating the count.
+          CLOSED_ISSUES="$(gh issue list \
+            --repo "$REPOSITORY" \
+            --state closed \
+            --search "closed:>=${START_DATE} closed:<${END_DATE}" \
+            --limit 1000 \
+            --json closedAt \
+            --jq 'length')"
+
+          echo "closed_issues=${CLOSED_ISSUES}" >> "$GITHUB_OUTPUT"
+          echo "start_date=${START_DATE}" >> "$GITHUB_OUTPUT"
+          echo "end_date=${END_DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish throughput summary
+        run: |
+          {
+            echo "## Weekly Throughput"
+            echo
+            echo "- Period (KST): ${{ steps.throughput.outputs.start_date }} to ${{ steps.throughput.outputs.end_date }} (end exclusive)"
+            echo "- Closed issues: ${{ steps.throughput.outputs.closed_issues }}"
+          } >> "$GITHUB_STEP_SUMMARY"
