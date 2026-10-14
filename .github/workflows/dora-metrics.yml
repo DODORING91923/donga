@@ -1,0 +1,49 @@
+name: Track Lead Time
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  track-lead-time:
+    # PR이 병합되었을 때만 실행
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate lead time
+        id: lead_time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+          MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        shell: bash
+        run: |
+          # PR의 첫 커밋 시각 (조회 실패 시 PR 생성 시각으로 대체)
+          FIRST_COMMIT_TIME="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" \
+            --jq '[.[].commit.author.date] | sort | first // empty' || true)"
+          FIRST_COMMIT_TIME="${FIRST_COMMIT_TIME:-$PR_CREATED_AT}"
+
+          # 시간 차이 계산 (초 단위)
+          LEAD_TIME=$(( $(date -d "$MERGED_AT" +%s) - $(date -d "$FIRST_COMMIT_TIME" +%s) ))
+          echo "Lead Time: ${LEAD_TIME} seconds"
+
+          echo "first_commit_time=${FIRST_COMMIT_TIME}" >> "$GITHUB_OUTPUT"
+          echo "lead_time=${LEAD_TIME}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish lead time summary
+        env:
+          LEAD_TIME: ${{ steps.lead_time.outputs.lead_time }}
+        run: |
+          {
+            echo "## Lead Time for Changes"
+            echo
+            echo "- PR: #${{ github.event.pull_request.number }}"
+            echo "- First commit: ${{ steps.lead_time.outputs.first_commit_time }}"
+            echo "- Merged: ${{ github.event.pull_request.merged_at }}"
+            echo "- Lead time: ${LEAD_TIME}s ($(( LEAD_TIME / 3600 ))h $(( LEAD_TIME % 3600 / 60 ))m)"
+          } >> "$GITHUB_STEP_SUMMARY"

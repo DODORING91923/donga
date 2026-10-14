@@ -1,0 +1,31 @@
+# GitHub Actions로 배포 빈도 추적
+name: Track Deployments
+
+on:
+  deployment:
+
+permissions:
+  deployments: read
+
+jobs:
+  track-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log deployment
+        env:
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+          DEPLOYMENT_REF: ${{ github.event.deployment.ref }}
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+          CREATED_AT: ${{ github.event.deployment.created_at }}
+        shell: bash
+        run: |
+          echo "Deployment at: ${CREATED_AT}"
+          echo "Environment: ${ENVIRONMENT}"
+
+          {
+            echo "## Deployment"
+            echo
+            echo "- Time: ${CREATED_AT}"
+            echo "- Environment: ${ENVIRONMENT}"
+            echo "- Ref: ${DEPLOYMENT_REF} (${DEPLOYMENT_SHA:0:7})"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,44 @@
+# 배포 성공/실패 결과 추적
+name: Track Deployment Result
+
+on:
+  deployment_status:
+
+permissions:
+  deployments: read
+
+jobs:
+  track-result:
+    # pending, in_progress 등 중간 상태는 건너뛰고 최종 결과만 기록
+    if: contains(fromJSON('["success", "failure", "error"]'), github.event.deployment_status.state)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log result
+        env:
+          STATUS: ${{ github.event.deployment_status.state }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+          UPDATED_AT: ${{ github.event.deployment_status.updated_at }}
+          LOG_URL: ${{ github.event.deployment_status.log_url }}
+        shell: bash
+        run: |
+          # 상태에 따른 분기 처리
+          if [ "$STATUS" = "success" ]; then
+            echo "✅ Deployment succeeded"
+            RESULT="✅ Succeeded"
+          else
+            echo "::error::❌ Deployment ${STATUS} (${ENVIRONMENT})"
+            RESULT="❌ ${STATUS}"
+          fi
+
+          {
+            echo "## Deployment Result"
+            echo
+            echo "- Result: ${RESULT}"
+            echo "- Environment: ${ENVIRONMENT}"
+            echo "- Commit: ${DEPLOYMENT_SHA:0:7}"
+            echo "- Time: ${UPDATED_AT}"
+            if [ -n "$LOG_URL" ]; then
+              echo "- Logs: ${LOG_URL}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,47 @@
+# Code Coverage Check Workflow
+name: Code Coverage
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Node 프로젝트(package.json)가 추가되기 전에는 이후 단계를 건너뜀
+      - name: Check for Node project
+        id: project
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::package.json not found; skipping coverage."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.project.outputs.exists == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.project.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Run tests with coverage
+        if: steps.project.outputs.exists == 'true'
+        run: npm test -- --coverage
+
+      - name: Upload coverage
+        if: steps.project.outputs.exists == 'true'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/coverage-final.json
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

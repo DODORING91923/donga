@@ -1,0 +1,39 @@
+name: Code Quality
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # SonarCloud 분석을 위한 전체 히스토리 가져오기
+          fetch-depth: 0
+
+      # SONAR_TOKEN이 설정되기 전(또는 Fork PR)에는 분석을 건너뜀
+      - name: Check for SonarCloud token
+        id: sonar
+        shell: bash
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SONAR_TOKEN secret not available; skipping SonarCloud scan."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SonarCloud Scan
+        if: steps.sonar.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          # SonarCloud 프로젝트 설정과 일치해야 함 (sonarcloud.io > Project Information)
+          args: >
+            -Dsonar.organization=dodoring91923
+            -Dsonar.projectKey=DODORING91923_donga

@@ -1,0 +1,46 @@
+# GitHub Actions로 헬스 체크 및 알림
+name: Health Check
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # 5분마다 실행
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check service
+        env:
+          # Settings > Secrets and variables > Actions > Variables 에서 설정
+          HEALTH_CHECK_URL: ${{ vars.HEALTH_CHECK_URL }}
+        shell: bash
+        run: |
+          if [ -z "$HEALTH_CHECK_URL" ]; then
+            echo "::warning::HEALTH_CHECK_URL variable is not set; skipping health check."
+            exit 0
+          fi
+
+          # 서비스 접속 시도, 실패 시 오류 처리
+          # 일시적인 네트워크 오류로 인한 오탐을 줄이기 위해 3회까지 재시도
+          if ! curl --fail --silent --show-error \
+            --max-time 10 \
+            --retry 3 --retry-delay 5 --retry-all-errors \
+            --output /dev/null \
+            "$HEALTH_CHECK_URL"; then
+            echo "::error::Service is down! (${HEALTH_CHECK_URL})"
+            {
+              echo "## Health Check Failed"
+              echo
+              echo "- URL: ${HEALTH_CHECK_URL}"
+              echo "- Time (UTC): $(date -u +'%F %T')"
+            } >> "$GITHUB_STEP_SUMMARY"
+            # 워크플로를 실패 처리해야 GitHub 실패 알림이 발송됨
+            exit 1
+          fi
+
+          echo "Service is healthy."

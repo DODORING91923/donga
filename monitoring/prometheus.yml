@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Prometheus 자체 메트릭
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 애플리케이션 메트릭 수집 대상 추가 예시
+  # - job_name: app
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8080']

@@ -1,0 +1,55 @@
+name: Collect Metrics
+
+on:
+  schedule:
+    # GitHub Actions cron is UTC: 15:00 UTC = 00:00 KST (매일 자정)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect contributor stats
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          mkdir -p metrics
+
+          # GitHub API로 메트릭 수집
+          # 통계가 아직 계산되지 않은 경우 202를 반환하므로 200이 될 때까지 재시도
+          for attempt in 1 2 3 4 5; do
+            STATUS="$(gh api "repos/${REPOSITORY}/stats/contributors" \
+              --include 2>/dev/null | head -n 1 | awk '{print $2}' || true)"
+            if [ "$STATUS" = "200" ]; then
+              gh api "repos/${REPOSITORY}/stats/contributors" > metrics/contributors.json
+              break
+            fi
+            echo "Stats not ready (status: ${STATUS:-unknown}), retrying in 10s... (${attempt}/5)"
+            sleep 10
+          done
+
+          if [ ! -s metrics/contributors.json ]; then
+            echo "::error::Failed to collect contributor stats."
+            exit 1
+          fi
+
+          {
+            echo "## Contributor Stats ($(TZ=Asia/Seoul date +%F))"
+            echo
+            echo "| Contributor | Commits |"
+            echo "|---|---|"
+            jq -r 'sort_by(-.total)[] | "| \(.author.login // "unknown") | \(.total) |"' metrics/contributors.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-${{ github.run_id }}
+          path: metrics/
+          retention-days: 90
