@@ -1,0 +1,74 @@
+
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DORA Metrics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1000px; margin: 36px auto; padding: 0 18px; color: #202938; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+    .card { border: 1px solid #d9dee7; border-radius: 12px; padding: 18px; }
+    .value { font-size: 28px; font-weight: bold; margin-top: 10px; }
+    .note { color: #5c6678; font-size: 13px; }
+    canvas { margin-top: 28px; max-height: 350px; }
+  </style>
+</head>
+<body>
+  <h1>DORA Metrics Dashboard</h1>
+  <p id="updated" class="note">데이터를 불러오는 중입니다...</p>
+  <section class="cards">
+    <article class="card"><h3>Lead Time</h3><div id="lead" class="value">—</div><p class="note">첫 커밋부터 PR 병합까지의 평균</p></article>
+    <article class="card"><h3>Deployment Frequency</h3><div id="frequency" class="value">—</div><p class="note">최근 30일 성공한 배포 수</p></article>
+    <article class="card"><h3>MTTR (proxy)</h3><div id="mttr" class="value">—</div><p class="note">실패 배포부터 다음 성공 배포까지</p></article>
+    <article class="card"><h3>Change Failure Rate</h3><div id="cfr" class="value">—</div><p class="note">실패/오류 배포 ÷ 최종 상태가 있는 배포</p></article>
+  </section>
+  <canvas id="chart"></canvas>
+  <p id="message" class="note"></p>
+  <script>
+    const fmt = (value, suffix = "") =>
+      value === null || value === undefined ? "측정 데이터 없음" : `${value}${suffix}`;
+
+    async function loadMetrics() {
+      const response = await fetch("./dora-metrics.json");
+      if (!response.ok) throw new Error("dora-metrics.json 파일을 찾을 수 없습니다.");
+      const data = await response.json();
+      const m = data.metrics;
+
+      document.getElementById("updated").textContent =
+        `저장소: ${data.repository} · 생성: ${data.generated_at} · 기간: 최근 ${data.period_days}일`;
+      document.getElementById("lead").textContent =
+        fmt(m.lead_time.value_hours, "시간");
+      document.getElementById("frequency").textContent =
+        fmt(m.deployment_frequency.successful_deployments, "회");
+      document.getElementById("mttr").textContent =
+        fmt(m.mttr.value_hours, "시간");
+      document.getElementById("cfr").textContent =
+        fmt(m.change_failure_rate.value_percent, "%");
+
+      document.getElementById("message").textContent =
+        "Lead Time, MTTR, Change Failure Rate는 현재 저장소 이벤트 기반 대리 지표입니다. 실제 운영 배포 및 장애 데이터와 차이가 있을 수 있습니다.";
+
+      new Chart(document.getElementById("chart"), {
+        type: "bar",
+        data: {
+          labels: ["Lead Time (시간)", "MTTR 대리 지표 (시간)"],
+          datasets: [{
+            label: "평균 시간",
+            data: [m.lead_time.value_hours, m.mttr.value_hours]
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    loadMetrics().catch(error => {
+      document.getElementById("updated").textContent = error.message;
+    });
+  </script>
+</body>
+</html>

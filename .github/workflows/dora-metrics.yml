@@ -1,49 +1,41 @@
-name: Track Lead Time
+
+name: DORA Metrics
 
 on:
-  pull_request:
-    types: [closed]
+  workflow_dispatch:
+  schedule:
+    # 매일 한국 시간 오전 9시 (UTC 00:00)
+    - cron: "0 0 * * *"
 
 permissions:
+  contents: read
   pull-requests: read
+  deployments: read
 
 jobs:
-  track-lead-time:
-    # PR이 병합되었을 때만 실행
-    if: github.event.pull_request.merged == true
+  collect-dora:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Calculate lead time
-        id: lead_time
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect DORA metrics
         env:
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
-          MERGED_AT: ${{ github.event.pull_request.merged_at }}
-        shell: bash
-        run: |
-          # PR의 첫 커밋 시각 (조회 실패 시 PR 생성 시각으로 대체)
-          FIRST_COMMIT_TIME="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" \
-            --jq '[.[].commit.author.date] | sort | first // empty' || true)"
-          FIRST_COMMIT_TIME="${FIRST_COMMIT_TIME:-$PR_CREATED_AT}"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/collect_dora.py
 
-          # 시간 차이 계산 (초 단위)
-          LEAD_TIME=$(( $(date -d "$MERGED_AT" +%s) - $(date -d "$FIRST_COMMIT_TIME" +%s) ))
-          echo "Lead Time: ${LEAD_TIME} seconds"
+      - name: Upload DORA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dora-metrics-${{ github.run_id }}
+          path: reports/
+          retention-days: 90
+          if-no-files-found: error
 
-          echo "first_commit_time=${FIRST_COMMIT_TIME}" >> "$GITHUB_OUTPUT"
-          echo "lead_time=${LEAD_TIME}" >> "$GITHUB_OUTPUT"
-
-      - name: Publish lead time summary
-        env:
-          LEAD_TIME: ${{ steps.lead_time.outputs.lead_time }}
-        run: |
-          {
-            echo "## Lead Time for Changes"
-            echo
-            echo "- PR: #${{ github.event.pull_request.number }}"
-            echo "- First commit: ${{ steps.lead_time.outputs.first_commit_time }}"
-            echo "- Merged: ${{ github.event.pull_request.merged_at }}"
-            echo "- Lead time: ${LEAD_TIME}s ($(( LEAD_TIME / 3600 ))h $(( LEAD_TIME % 3600 / 60 ))m)"
-          } >> "$GITHUB_STEP_SUMMARY"
