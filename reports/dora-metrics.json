@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-10-14T08:08:39.326096+00:00",
+  "period_days": 30,
+  "repository": "DODORING91923/donga",
+  "metrics": {
+    "lead_time": {
+      "value_hours": null,
+      "sample_count": 0,
+      "definition": "Average first commit to PR merge; proxy, not production deployment lead time"
+    },
+    "deployment_frequency": {
+      "successful_deployments": 0,
+      "per_30_days": 0,
+      "definition": "Successful GitHub deployments in the last 30 days"
+    },
+    "mttr": {
+      "value_hours": null,
+      "recovered_failure_count": 0,
+      "definition": "Proxy: failed deployment status to next successful deployment in the same environment"
+    },
+    "change_failure_rate": {
+      "value_percent": null,
+      "failed_deployments": 0,
+      "finalized_deployments": 0,
+      "definition": "Failed/error deployments divided by finalized deployments; proxy for change failure rate"
+    }
+  }
+}
